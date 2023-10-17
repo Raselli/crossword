@@ -204,41 +204,6 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        
-        """
-            #neighbours = self.crossword.neighbors(var[0])
-            #rule_out_per_word = {}
-            #
-            # Comparing var's word-overlap with its neighbours
-            #for word in var[1]:
-            #    rule_out_count = 0            
-            #    for neighbour in neighbours:
-            #        overlap = self.crossword.overlaps[neighbour, var[0]]
-            #        for neighbour_word in self.domains[neighbour]:
-            #            if neighbour_word[overlap[0]] != word[overlap[1]]:
-            #                rule_out_count += 1
-            #    rule_out_per_word[word] = rule_out_count
-
-            # Comparing var's word-overlap with its neighbours 2
-            rule_out_per_word = {
-                    word: sum(
-                            1 for neighbour in self.crossword.neighbors(var[0])
-                            for neighbour_word in self.domains[neighbour]
-                            if neighbour_word[self.crossword.overlaps[neighbour, var[0]][0]] != 
-                            word[self.crossword.overlaps[neighbour, var[0]][1]]
-                        )
-                    for word in var[1]
-                }
-
-            # Sorting word based on 'rule-outs'
-            sorted_list_of_values = sorted(
-                    rule_out_per_word.keys(), 
-                    key=lambda a: rule_out_per_word[a], 
-                    reverse=True
-                )
-            
-            return sorted_list_of_values
-        """
        
         # Comparing var's word-overlap with its neighbours
         rule_out_per_word = {
@@ -248,16 +213,11 @@ class CrosswordCreator():
                 if neighbour_word[self.crossword.overlaps[neighbour, var][0]] 
                 != word[self.crossword.overlaps[neighbour, var][1]]
             )
-            
             for word in self.domains[var]
         }
 
-#iter() instead of .keys()?
         # Returns sorted word based on 'rule-outs'
-        return sorted(
-            rule_out_per_word.keys(),
-            key=lambda word: rule_out_per_word[word]
-        )
+        return sorted(rule_out_per_word, key=rule_out_per_word.get)
 
     def select_unassigned_variable(self, assignment):
         """
@@ -267,6 +227,30 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
+        # -> if possible: tuples; (value, min_remaining_values, heuristic-degrees)
+        # this would allow for calculating everything using only min or max, but not both
+        # could sort it faster and may allow to compress the 3 functions into 1; less iterations
+        
+        # faster -> indexing, variable 3th -> sorting-advantage, -readable
+        """
+        unused_variables = {          
+            (-len(variable[1]), len(self.crossword.neighbors(variable[0])), variable[0]) 
+            for variable in self.domains.items() 
+            if variable[0] not in assignment
+        }
+      
+        # +readable, slower
+        unused_variables = {          
+            (var, -len(self.domains[var]), len(self.crossword.neighbors(var))) 
+            for var, _ in self.domains.items() 
+            if var not in assignment
+        }         
+        
+        if min(unused_variables):
+            return unused_variables
+        else:
+            return min(unused_variables, key=lambda
+        """          
 
         # Determine all unused variables
         unused_variables = [
@@ -278,23 +262,19 @@ class CrosswordCreator():
         if len(unused_variables) > 1:
             min_remaining_values = [
                 variable for variable in unused_variables 
-                if len(variable[1]) == min(len(variable) for variable in unused_variables)
+                if len(variable[1]) == min(len(words) for _, words in unused_variables)
             ]
 
             # Find variable with the highest degree
             if not min_remaining_values:
-                map_neighbours = {
-                    variable[0]: len(self.crossword.neighbors(variable[0]))
-                    for variable in unused_variables
-                }
-                map_neighbours = [
-                    var for var, degree in map_neighbours.items() 
-                    if degree == max(map_neighbours.values())
-                ]
-                return map_neighbours[0]
+                return max(
+                    (variable for variable, _ in unused_variables),
+                    key=lambda variable: len(self.crossword.neighbors(variable))                      
+                )
             return min_remaining_values[0][0]
+        
         return unused_variables[0][0]
-
+        
     def backtrack(self, assignment):
         """
         Using Backtracking Search, take as input a partial assignment for the
