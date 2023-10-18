@@ -117,18 +117,16 @@ class CrosswordCreator():
         # Check for the existence of overlapping words
         overlap = self.crossword.overlaps[x, y]
         if overlap:
-            valid_words = set()  
-            for word_x in self.domains[x]:
-                word_found = False
-                for word_y in self.domains[y]:
-                    if word_x[overlap[0]] == word_y[overlap[1]]:
-                        word_found = True
-                        break
-                if word_found:
-                    valid_words.add(word_x)
-
+            valid_words = {
+                word_x for word_x in self.domains[x]
+                if any(
+                    word_x[overlap[0]] == word_y[overlap[1]]
+                    for word_y in self.domains[y]
+                )
+            }  
+            
             # Update values of x
-            if set(self.domains[x]) != valid_words:       
+            if self.domains[x] != valid_words:       
                 self.domains[x] = valid_words 
                 return True
             
@@ -147,13 +145,15 @@ class CrosswordCreator():
             arcs = [
                 (x, y) for x in self.domains for y in self.domains if x != y
             ]
+            
+        # Update self.domains
         while arcs:
             x, y = arcs.pop()
-            if self.revise(x, y):
-                if not self.domains[x]:
-                    return False
+            if self.revise(x, y) and not self.domains[x]:
+                return False
             for z in self.crossword.neighbors(x) - {y}:
                 arcs.insert(0, (z, x))
+                
         return True
 
     def assignment_complete(self, assignment):
@@ -187,7 +187,7 @@ class CrosswordCreator():
         )
 
         # Return the 3 consistency-checks
-        return repetition and words_fit_board and words_no_conflict
+        return all((repetition, words_fit_board, words_no_conflict))
 
     def order_domain_values(self, var, assignment):
         """
@@ -208,7 +208,6 @@ class CrosswordCreator():
             )
             for word in self.domains[var]
         }
-
         return sorted(rule_out_per_word, key=rule_out_per_word.get)
 
     def select_unassigned_variable(self, assignment):
@@ -244,6 +243,7 @@ class CrosswordCreator():
             return assignment
 
         # Backtrack to complete assignement
+        # No inference: Additional method-calls made it slower
         unassigned_var = self.select_unassigned_variable(assignment)
         for value in self.order_domain_values(unassigned_var, assignment):         
             assignment[unassigned_var] = value             
