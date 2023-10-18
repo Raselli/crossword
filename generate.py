@@ -147,14 +147,13 @@ class CrosswordCreator():
             arcs = [
                 (x, y) for x in self.domains for y in self.domains if x != y
             ]
-
         while arcs:
-            (x, y) = arcs.pop()
+            x, y = arcs.pop()
             if self.revise(x, y):
                 if not self.domains[x]:
                     return False
             for z in self.crossword.neighbors(x) - {y}:
-                arcs.insert(0, (z,x))
+                arcs.insert(0, (z, x))
         return True
 
     def assignment_complete(self, assignment):
@@ -197,11 +196,12 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-# assignment never accessed
+
         # Comparing var's word-overlap with its neighbours
         rule_out_per_word = {
             word: sum(
                 1 for neighbour in self.crossword.neighbors(var)
+                if neighbour not in assignment
                 for neighbour_word in self.domains[neighbour]
                 if neighbour_word[self.crossword.overlaps[neighbour, var][0]]
                 != word[self.crossword.overlaps[neighbour, var][1]]
@@ -209,7 +209,6 @@ class CrosswordCreator():
             for word in self.domains[var]
         }
 
-        # Returns sorted word based on 'rule-outs'
         return sorted(rule_out_per_word, key=rule_out_per_word.get)
 
     def select_unassigned_variable(self, assignment):
@@ -222,25 +221,13 @@ class CrosswordCreator():
         """
 
         # Returns max. nested-tuple; (variable, (words, degree))
-        # +faster, -readable
         return max((
             (
                 domain[0], 
                 (-len(domain[1]), len(self.crossword.neighbors(domain[0])))
             )
             for domain in self.domains.items() if domain[0] not in assignment
-        ), key=lambda x: x[1])[0]          
-        
-        """      
-        # +readable, -slower
-        return max((
-            (
-                var, 
-                (-len(self.domains[var]), len(self.crossword.neighbors(var)))
-            )
-            for var, _ in self.domains.items() if var not in assignment
-        ), key=lambda x: x[1])[0]         
-        """              
+        ), key=lambda x: x[1])[0]    
                
     def backtrack(self, assignment):
         """
